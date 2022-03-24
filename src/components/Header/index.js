@@ -1,4 +1,4 @@
-import { View, Image, Text, TouchableOpacity } from "react-native";
+import { View, Image, Text, TouchableOpacity, Alert } from "react-native";
 import React from "react";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,13 +6,24 @@ import styles from "./styles";
 import { useNavigation } from "@react-navigation/core";
 import NewPostScreen from "../../screens/NewPostScreen";
 import { Tooltip } from "react-native-elements";
+import { auth } from "../../../firebase-config";
+import { signOut } from "firebase/auth";
+
+const handleSignOut = async () => {
+  try {
+    await signOut(auth);
+    console.log("Signed Out Successfully");
+  } catch (error) {
+    Alert.alert(error.message);
+  }
+};
 
 const Header = () => {
   const { navigate, goBack } = useNavigation();
   return (
     <View style={styles.container}>
       <StatusBar hidden={false} style="inverted" />
-      <TouchableOpacity onPress={() => goBack()}>
+      <TouchableOpacity onPress={handleSignOut}>
         <Image
           style={styles.logo}
           source={require("../../../assets/instaLogo.png")}

@@ -6,11 +6,25 @@ import {
   TouchableOpacity,
   Text,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import validUrl from "valid-url";
 import { useNavigation } from "@react-navigation/core";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  doc,
+  where,
+  query,
+  limit,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  collectionGroup,
+} from "firebase/firestore";
+import { auth } from "../../../firebase-config";
 
 const postUploaderSchema = Yup.object().shape({
   imageUrl: Yup.string().url().required("please enter a URL *"),
@@ -23,16 +37,56 @@ const placeholderImage =
   "https://lanecdr.org/wp-content/uploads/2019/08/placeholder.png";
 
 const FormikPostUploader = () => {
+  const db = getFirestore();
+  const colRef = collection(db, "users");
   const { goBack } = useNavigation();
   const [thumbnail, setThumbnail] = useState(placeholderImage);
+  const [currentLoggedInUser, setCurrentLoggedInUser] = useState(null);
+
+  const getUserName = async () => {
+    const user = auth.currentUser;
+    const q = query(colRef, where("owner_uid", "==", user.uid), limit(1));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docs.map((doc) => {
+        setCurrentLoggedInUser({
+          userName: doc.data().userName,
+          profile_picture: doc.data().profile_picture,
+        });
+      });
+    });
+
+    return unsubscribe;
+  };
+
+  useEffect(() => {
+    getUserName();
+    console.log("hello", currentLoggedInUser);
+  }, []);
+
+  const uploadPostToFirebase = async (imageUrl, caption) => {
+    const postRef = doc(colRef, auth.currentUser.email);
+    const unsubscribe = await addDoc(collection(postRef, "posts"), {
+      imageUrl: imageUrl,
+      user: currentLoggedInUser.userName,
+      profile_picture: currentLoggedInUser.profile_picture,
+      owner_uid: auth.currentUser.uid,
+      caption: caption,
+      createdAt: serverTimestamp(),
+      likes_by_users: [],
+      comments: [],
+      owner_email: auth.currentUser.email,
+    })
+      .then(() => goBack())
+      .catch((error) => console.log(error.message));
+
+    return unsubscribe;
+  };
   return (
     <View style={styles.container}>
       <Formik
         initialValues={{ caption: "", imageUrl: "" }}
         onSubmit={(values) => {
-          console.log(values);
-          console.log("Your Data is submitted");
-          goBack();
+          uploadPostToFirebase(values.imageUrl, values.caption);
         }}
         validationSchema={postUploaderSchema}
         //validateOnMount={true}

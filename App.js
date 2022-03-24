@@ -1,6 +1,6 @@
 import "react-native-gesture-handler";
-import SignedInStack from "./src/navigation";
+import AuthNavigation from "./AuthNavigation";
 
 export default function App() {
-  return <SignedInStack />;
+  return <AuthNavigation />;
 }

@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import {
   View,
   Text,
@@ -5,72 +6,106 @@ import {
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
-  LogBox,
   Alert,
 } from "react-native";
 import React from "react";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { useNavigation } from "@react-navigation/core";
-import HomeScreen from "../../screens/HomeScreen";
 import { Divider } from "react-native-elements";
 import Validator from "email-validator";
-import { signInWithEmailAndPassword } from "firebase/auth";
+//import HomeScreen from '../../screens/HomeScreen';
+import LoginScreen from "../../screens/LoginScreen";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../../firebase-config";
-import SignUpScreen from "../../screens/SignUpScreen";
+import {
+  collection,
+  addDoc,
+  getFirestore,
+  setDoc,
+  doc,
+} from "firebase/firestore";
 
-const loginSchema = Yup.object().shape({
+const db = getFirestore();
+
+const registerSchema = Yup.object().shape({
   email: Yup.string().email().required(),
   password: Yup.string()
     .required()
     .min(6, "Password should be at least 6 characters long"),
+  userName: Yup.string()
+    .required()
+    .min(2, "User Name should be at least 3 characters long "),
 });
 
-const LoginForm = () => {
-  LogBox.ignoreLogs([
-    "Require cycle: src/screens/LoginScreen/index.js -> src/components/LoginForm/index.js -> src/screens/SignUpScreen/index.js -> src/components/SignUpForm/index.js -> src/screens/LoginScreen/index.js",
-    "AsyncStorage has been extracted from react-native core and will be removed in a future release",
-    "Setting a timer for a long period of time, i.e. multiple minutes, is a performance and correctness issue on Android as it keeps the timer module awake, and timers can only be called when the app is in the foreground.",
-  ]);
-  const { navigate } = useNavigation();
+const getRandomProfilePicture = async () => {
+  const response = await fetch("https://randomuser.me/api");
+  const data = await response.json();
+  return data.results[0].picture.large;
+};
 
-  const onLogin = async (email, password) => {
+const SignUpForm = () => {
+  const { navigate } = useNavigation();
+  const colRef = collection(db, "users");
+
+  const onSignUp = async (userName, email, password) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      console.log("Successfully Login", email, password);
-    } catch (error) {
-      Alert.alert(
-        "Warning",
-        error.message + "\n\n What would you like to do next ?",
-        [
-          {
-            text: "OK",
-            onPress: () => console.log("OK"),
-            style: "cancel",
-          },
-          {
-            text: "Sign Up",
-            onPress: () => navigate(SignUpScreen),
-            style: "cancel",
-          },
-        ]
+      const authUser = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
       );
+      console.log("User Sign Up Successful", email, password);
+      await setDoc(doc(colRef, authUser.user.email), {
+        owner_uid: authUser.user.uid,
+        userName: userName,
+        email: email,
+        profile_picture: await getRandomProfilePicture(),
+      })
+        .then(() => console.log("Added User to the Database"))
+        .catch((err) => console.log(err.message));
+    } catch (error) {
+      Alert.alert(error.message);
     }
   };
+
   return (
     <>
       <KeyboardAvoidingView style={styles.container} behavior="position">
         <Formik
-          initialValues={{ email: "", password: "" }}
+          initialValues={{ email: "", password: "", userName: "" }}
           onSubmit={(values) => {
-            onLogin(values.email, values.password);
-            //navigate(HomeScreen);
+            onSignUp(values.userName, values.email, values.password);
           }}
-          validationSchema={loginSchema}
+          validationSchema={registerSchema}
           validateOnMount={true}
         >
           {({ handleSubmit, handleBlur, handleChange, isValid, values }) => (
             <>
+              <View
+                style={[
+                  styles.input,
+                  {
+                    borderColor:
+                      values.userName.length < 1 || values.userName.length >= 3
+                        ? "grey"
+                        : "#ff0000",
+                  },
+                ]}
+              >
+                <TextInput
+                  placeholderTextColor="#777"
+                  placeholder="Enter User Name  ..."
+                  autoCapitalize="none"
+                  keyboardType="default"
+                  autoFocus={true}
+                  autoCorrect={false}
+                  textContentType="name"
+                  onChangeText={handleChange("userName")}
+                  onBlur={handleBlur("userName")}
+                  value={values.userName}
+                />
+              </View>
               <View
                 style={[
                   styles.input,
@@ -119,25 +154,26 @@ const LoginForm = () => {
                   value={values.password}
                 />
               </View>
+
               <TouchableOpacity
                 disabled={!isValid}
                 style={styles.buttonWrapper(isValid)}
                 onPress={handleSubmit}
               >
-                <Text style={styles.buttonText(isValid)}>Log In</Text>
+                <Text style={styles.buttonText(isValid)}>REGISTER</Text>
               </TouchableOpacity>
             </>
           )}
         </Formik>
       </KeyboardAvoidingView>
-      <Divider width={0.2} color="#505050" style={{ marginTop: 100 }} />
+      <Divider width={0.2} color="#f0f0f099" style={{ marginTop: 100 }} />
       <View style={styles.footerWrapper}>
-        <Text style={{ fontSize: 13 }}>Don't have an account ? </Text>
-        <TouchableOpacity onPress={() => navigate(SignUpScreen)}>
-          <Text
-            style={{ color: "#621BD6", marginLeft: 10, fontWeight: "bold" }}
-          >
-            Sign Up
+        <Text style={{ fontSize: 13, color: "black" }}>
+          Already have an account !!
+        </Text>
+        <TouchableOpacity onPress={() => navigate(LoginScreen)}>
+          <Text style={{ color: "red", marginLeft: 10, fontWeight: "bold" }}>
+            Log In
           </Text>
         </TouchableOpacity>
       </View>
@@ -157,7 +193,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginTop: 20,
     borderRadius: 5,
-    backgroundColor: "#90909010",
+    backgroundColor: "#ffffff90",
   },
   buttonWrapper: (isValid) => ({
     backgroundColor: isValid ? "#00000199" : "#90909090",
@@ -183,4 +219,4 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
 });
-export default LoginForm;
+export default SignUpForm;

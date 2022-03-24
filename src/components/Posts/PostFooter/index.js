@@ -2,19 +2,28 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "react-native-elements";
+import { auth } from "../../../../firebase-config";
 
-const PostFooter = ({ post }) => {
+const PostFooter = ({ post, handleLike }) => {
   return (
     // Footer Section
     <View style={styles.wrapper}>
       <View style={styles.iconContainer}>
         {/* Icons Section */}
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => handleLike(post)}>
           <Ionicons
             style={styles.icon}
-            name="heart-outline"
+            name={
+              post.likes_by_users.includes(auth.currentUser.email)
+                ? "heart"
+                : "heart-outline"
+            }
             size={30}
-            color="white"
+            color={
+              post.likes_by_users.includes(auth.currentUser.email)
+                ? "red"
+                : "white"
+            }
           />
         </TouchableOpacity>
         <TouchableOpacity>
@@ -47,7 +56,9 @@ const PostFooter = ({ post }) => {
 
       <View style={styles.likesContainer}>
         <Text style={styles.likesText}>
-          {post.likes.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+          {post.likes_by_users.length
+            .toString()
+            .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
         </Text>
         <Text
           style={{
